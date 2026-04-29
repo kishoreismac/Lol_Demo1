@@ -85,10 +85,10 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore
-        run: dotnet restore LightWeight.sln
+        run: dotnet restore LoL_Demo.sln
 
       - name: Build
-        run: dotnet build LightWeight.sln --configuration Release --no-restore
+        run: dotnet build LoL_Demo.sln --configuration Release --no-restore
 
       - name: Test
         run: dotnet test LandOLakesDairyDemo.Tests/LandOLakesDairyDemo.Tests.csproj --configuration Release 
