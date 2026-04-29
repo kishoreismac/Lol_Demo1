@@ -75,12 +75,13 @@ jobs:
             exit 1
           fi
 
-          az storage container create \
-            --name "$TFSTATE_CONTAINER_NAME" \
-            --account-name "$TFSTATE_STORAGE_ACCOUNT" \
-            --account-key "$TF_STATE_ACCESS_KEY" \
-            --fail-on-exist false \
-            --output none
+          az storage account create \
+            --name "$TFSTATE_STORAGE_ACCOUNT" \
+            --resource-group "$TFSTATE_RESOURCE_GROUP" \
+            --location "$TFSTATE_STORAGE_LOCATION" \
+            --sku Standard_LRS \
+            --kind StorageV2 \
+            --allow-blob-public-access false
 
           echo "TF_STATE_ACCESS_KEY=$TF_STATE_ACCESS_KEY" >> "$GITHUB_ENV"
 
