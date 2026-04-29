@@ -1,170 +1,118 @@
-name: Application Deploy
+name: App
 
 on:
-  push:
-    branches:
-      - main
   workflow_run:
     workflows:
-      - Infrastructure
+      - Infra
     types:
       - completed
+  workflow_dispatch:
 
 permissions:
-  id-token: write
-  contents: read
   actions: read
-
-concurrency:
-  group: azure-deployment
-  cancel-in-progress: false
+  contents: read
+  id-token: write
 
 jobs:
   deploy:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      PUBLISH_DIR: ${{ github.workspace }}/artifacts/publish
+      ZIP_PATH: ${{ github.workspace }}/artifacts/app.zip
+      TFSTATE_CONTAINER_NAME: ${{ vars.TFSTATE_CONTAINER_NAME }}
+      TFSTATE_KEY: ${{ vars.TFSTATE_KEY }}
+      TFSTATE_RESOURCE_GROUP: ${{ vars.TFSTATE_RESOURCE_GROUP }}
+      TFSTATE_STORAGE_ACCOUNT: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download deployment outputs artifact from triggering infrastructure run
-        if: github.event_name == 'workflow_run'
-        uses: dawidd6/action-download-artifact@v9
-        with:
-          github_token: ${{ github.token }}
-          workflow: infra.yml
-          run_id: ${{ github.event.workflow_run.id }}
-          name: deployment-outputs
-          path: ./.deploy
-          if_no_artifact_found: fail
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - name: Download latest deployment outputs artifact from main
-        if: github.event_name == 'push'
-        uses: dawidd6/action-download-artifact@v9
+      - name: Download Deployment Outputs Artifact
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
-          github_token: ${{ github.token }}
-          workflow: infra.yml
-          branch: main
-          workflow_conclusion: success
           name: deployment-outputs
-          path: ./.deploy
-          search_artifacts: true
-          if_no_artifact_found: fail
+          path: deployment-outputs
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ env.GITHUB_TOKEN }}
 
-      - name: Validate and load deployment outputs
-        shell: bash
+      - name: Load Deployment Settings
         run: |
-          set -euo pipefail
+          OUTPUT_FILE="deployment-outputs/deployment-outputs.env"
 
-          if [ ! -f ./.deploy/deployment-outputs.env ]; then
-            echo "deployment-outputs.env was not found."
-            exit 1
-          fi
+          if [ -f "$OUTPUT_FILE" ]; then
+            set -a
+            . "$OUTPUT_FILE"
+            set +a
+          else
+            terraform -chdir=infra init \
+              -backend-config="resource_group_name=$TFSTATE_RESOURCE_GROUP" \
+              -backend-config="storage_account_name=$TFSTATE_STORAGE_ACCOUNT" \
+              -backend-config="container_name=$TFSTATE_CONTAINER_NAME" \
+              -backend-config="key=$TFSTATE_KEY" \
+              -backend-config="use_oidc=true" \
+              -backend-config="client_id=$ARM_CLIENT_ID" \
+              -backend-config="tenant_id=$ARM_TENANT_ID" \
+              -backend-config="subscription_id=$ARM_SUBSCRIPTION_ID"
 
-          set -a
-          source ./.deploy/deployment-outputs.env
-          set +a
-
-          if [ -z "${RESOURCE_GROUP_NAME:-}" ]; then
-            echo "RESOURCE_GROUP_NAME is empty."
-            exit 1
-          fi
-
-          if [ -z "${WEB_APP_NAME:-}" ]; then
-            echo "WEB_APP_NAME is empty."
-            exit 1
+            RESOURCE_GROUP_NAME="$(terraform -chdir=infra output -raw resource_group_name)"
+            WEB_APP_NAME="$(terraform -chdir=infra output -raw web_app_name)"
           fi
 
           echo "RESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME" >> "$GITHUB_ENV"
           echo "WEB_APP_NAME=$WEB_APP_NAME" >> "$GITHUB_ENV"
 
-      - name: Azure login
+      - name: Validate Deployment Settings
+        run: |
+          if [ -z "$RESOURCE_GROUP_NAME" ] || [ -z "$WEB_APP_NAME" ]; then
+            echo "Missing RESOURCE_GROUP_NAME or WEB_APP_NAME"
+            exit 1
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore LightWeight.sln
+
+      - name: Build
+        run: dotnet build LightWeight.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test LandOLakesDairyDemo.Tests/LandOLakesDairyDemo.Tests.csproj --configuration Release 
+
+      - name: Publish
+        run: dotnet publish LandOLakesDairyDemo/LandOLakesDairyDemo.csproj --configuration Release --no-build --output "$PUBLISH_DIR"
+
+      - name: Zip Publish Output
+        run: |
+          mkdir -p "$(dirname "$ZIP_PATH")"
+          cd "$PUBLISH_DIR"
+          zip -r "$ZIP_PATH" .
+
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Validate Azure login
-        run: az account show
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Restore
-        run: dotnet restore ./LoL_Demo.sln
-
-      - name: Build
-        run: dotnet build ./LoL_Demo.sln --configuration Release --no-restore
-
-      - name: Test
-        run: dotnet test ./LoL_Demo.sln --configuration Release --no-build
-
-      - name: Publish
-        run: dotnet publish ./LandOLakesDairyDemo.csproj --configuration Release --no-build --output publish
-
-      - name: Create deployment zip
-        shell: bash
+      - name: Deploy ZIP Package
         run: |
-          set -euo pipefail
-
-          if ! command -v zip >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y zip
-          fi
-
-          if [ ! -d publish ]; then
-            echo "Publish output directory does not exist."
-            exit 1
-          fi
-
-          pushd publish >/dev/null
-          zip -r ../app.zip .
-          popd >/dev/null
-
-          if [ ! -f app.zip ]; then
-            echo "app.zip was not created."
-            exit 1
-          fi
-
-      - name: Configure App Service settings
-        shell: bash
-        run: |
-          set -euo pipefail
-          az webapp config appsettings set \
-            --resource-group "$RESOURCE_GROUP_NAME" \
-            --name "$WEB_APP_NAME" \
-            --settings WEBSITE_RUN_FROM_PACKAGE=1 SCM_DO_BUILD_DURING_DEPLOYMENT=false \
-            --output none
-
-      - name: Deploy ZIP package
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ ! -f app.zip ]; then
-            echo "app.zip is missing."
-            exit 1
-          fi
-
           az webapp deploy \
             --resource-group "$RESOURCE_GROUP_NAME" \
             --name "$WEB_APP_NAME" \
-            --src-path app.zip \
-            --type zip \
-            --output none
-
-      - name: Restart app
-        run: |
-          az webapp restart \
-            --resource-group "$RESOURCE_GROUP_NAME" \
-            --name "$WEB_APP_NAME"
-
-      - name: Print deployment URLs
-        shell: bash
-        run: |
-          echo "https://${WEB_APP_NAME}.azurewebsites.net"
-          echo "https://${WEB_APP_NAME}.azurewebsites.net/swagger"
+            --src-path "$ZIP_PATH" \
+            --type zip
