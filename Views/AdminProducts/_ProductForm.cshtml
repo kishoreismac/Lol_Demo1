@@ -1,0 +1,67 @@
+@model LandOLakesDairyDemo.Models.ProductInputModel
+
+@{
+    var categories = ViewBag.Categories as IReadOnlyList<string> ?? Array.Empty<string>();
+}
+
+<div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="ProductId" class="form-label"></label>
+        <input asp-for="ProductId" class="form-control" />
+        <span asp-validation-for="ProductId" class="text-danger"></span>
+    </div>
+    <div class="col-md-8">
+        <label asp-for="ProductName" class="form-label"></label>
+        <input asp-for="ProductName" class="form-control" />
+        <span asp-validation-for="ProductName" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Category" class="form-label"></label>
+        <select asp-for="Category" class="form-select">
+            <option value="">Select a category</option>
+            @foreach (var category in categories)
+            {
+                <option value="@category">@category</option>
+            }
+        </select>
+        <span asp-validation-for="Category" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Brand" class="form-label"></label>
+        <input asp-for="Brand" class="form-control" />
+        <span asp-validation-for="Brand" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="ShortDescription" class="form-label"></label>
+        <textarea asp-for="ShortDescription" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="ShortDescription" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="PackageSize" class="form-label"></label>
+        <input asp-for="PackageSize" class="form-control" />
+        <span asp-validation-for="PackageSize" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="Price" class="form-label"></label>
+        <input asp-for="Price" class="form-control" />
+        <span asp-validation-for="Price" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="ImageFileName" class="form-label"></label>
+        <input asp-for="ImageFileName" class="form-control" />
+        <span asp-validation-for="ImageFileName" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Tags" class="form-label"></label>
+        <input asp-for="Tags" class="form-control" placeholder="butter, salted, baking" />
+        <span asp-validation-for="Tags" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <div class="form-check">
+            <input asp-for="IsFeatured" class="form-check-input" />
+            <label asp-for="IsFeatured" class="form-check-label"></label>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,57 @@
+@model LandOLakesDairyDemo.Models.Product
+
+@{
+    ViewData["Title"] = Model.ProductName;
+    var tags = (Model.Tags ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+<div class="row g-4 align-items-start">
+    <div class="col-lg-6">
+        <div class="product-detail-image d-flex flex-column justify-content-between">
+            <div class="d-flex justify-content-between align-items-start">
+                <span class="badge badge-soft rounded-pill">@Model.Category</span>
+                @if (Model.IsFeatured)
+                {
+                    <span class="badge rounded-pill text-bg-warning">Featured</span>
+                }
+            </div>
+            <div>
+                <div class="text-muted small">Image placeholder</div>
+                <div class="h5 mb-0">@(Model.ImageFileName ?? "No image file assigned")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="detail-card shadow-sm p-4">
+            <span class="eyebrow">Product Details</span>
+            <h1 class="display-6 mt-3 mb-2">@Model.ProductName</h1>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <span class="badge badge-soft rounded-pill">@Model.Brand</span>
+                <span class="badge badge-soft rounded-pill">@Model.PackageSize</span>
+            </div>
+            <p class="lead text-muted">@Model.ShortDescription</p>
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span class="price-pill fs-6">@Model.Price.ToString("C")</span>
+                <span class="text-secondary small">Product ID: @Model.ProductId</span>
+            </div>
+
+            @if (tags.Length > 0)
+            {
+                <div class="mb-4">
+                    <h2 class="h6 text-uppercase text-muted">Tags</h2>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var tag in tags)
+                        {
+                            <span class="badge badge-soft rounded-pill">@tag</span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-accent" asp-action="Index">Back to Catalog</a>
+                <a class="btn btn-outline-secondary" asp-controller="AdminProducts" asp-action="Edit" asp-route-id="@Model.Id">Edit in Admin</a>
+            </div>
+        </div>
+    </div>
+</div>

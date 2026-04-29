@@ -1,0 +1,55 @@
+## .NET build output
+bin/
+obj/
+artifacts/
+publish/
+*.user
+*.suo
+
+## Test results
+TestResults/
+[Tt]est[Rr]esults/
+*.trx
+*.coverage
+coverage*.xml
+
+## Stryker / mutation testing
+.stryker-out/
+StrykerOutput/
+reports/
+
+## Playwright
+playwright/node_modules/
+playwright/playwright-report/
+playwright/test-results/
+
+## Local SQLite database
+*.db
+*.db-shm
+*.db-wal
+
+## Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.tfstate.lock.info
+
+## Tooling and IDE
+.vs/
+.vscode/
+.idea/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Deployment outputs
+deployment-outputs.env
+.deploy/

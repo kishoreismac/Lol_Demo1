@@ -1,0 +1,83 @@
+@model LandOLakesDairyDemo.Models.Qa.QaTestCasesViewModel
+
+@{
+    ViewData["Title"] = "QA Test Cases";
+}
+
+<section class="admin-shell rounded-4 p-4 p-lg-5 mb-4">
+    <span class="eyebrow">Live QA Board</span>
+    <h1 class="display-6 mt-2 mb-2">Smoke test case document</h1>
+    <p class="text-muted mb-0">
+        This page highlights the active Playwright smoke test case while the headed test run is executing.
+    </p>
+</section>
+
+<div class="panel-card rounded-4 p-4 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+        <div>
+            <div class="small text-muted text-uppercase">Current Case</div>
+            <div class="h4 mb-1" id="qa-current-id">@(Model.CurrentState.CaseId ?? "None")</div>
+            <div class="text-muted" id="qa-current-title">@(Model.CurrentState.Title ?? "Waiting for test execution")</div>
+        </div>
+        <div class="text-lg-end">
+            <div class="small text-muted text-uppercase">Status</div>
+            <div class="h5 mb-1" id="qa-current-status">@Model.CurrentState.Status</div>
+            <div class="small text-muted" id="qa-current-updated">Updated @Model.CurrentState.UpdatedUtc.ToLocalTime().ToString("g")</div>
+        </div>
+    </div>
+    <div class="text-muted mt-3" id="qa-current-notes">@Model.CurrentState.Notes</div>
+</div>
+
+<div class="row g-4">
+    @foreach (var testCase in Model.TestCases)
+    {
+        <div class="col-lg-6">
+            <article class="panel-card rounded-4 p-4 qa-case-card" data-case-id="@testCase.Id">
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <div class="eyebrow">@testCase.Id</div>
+                        <h2 class="h4 mt-3 mb-1">@testCase.Title</h2>
+                    </div>
+                    <span class="badge badge-soft rounded-pill">@testCase.Requirement</span>
+                </div>
+                <dl class="mb-0">
+                    <dt class="small text-uppercase text-muted">Preconditions</dt>
+                    <dd>@testCase.Preconditions</dd>
+                    <dt class="small text-uppercase text-muted">Steps</dt>
+                    <dd>@testCase.Steps</dd>
+                    <dt class="small text-uppercase text-muted">Expected Result</dt>
+                    <dd>@testCase.ExpectedResult</dd>
+                    <dt class="small text-uppercase text-muted">Automation</dt>
+                    <dd class="mb-0">@testCase.AutomationCoverage</dd>
+                </dl>
+            </article>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        async function refreshQaState() {
+            const response = await fetch('/qa/state', { cache: 'no-store' });
+            const state = await response.json();
+
+            document.getElementById('qa-current-id').textContent = state.caseId || 'None';
+            document.getElementById('qa-current-title').textContent = state.title || 'Waiting for test execution';
+            document.getElementById('qa-current-status').textContent = state.status || 'idle';
+            document.getElementById('qa-current-notes').textContent = state.notes || '';
+            document.getElementById('qa-current-updated').textContent = state.updatedUtc
+                ? `Updated ${new Date(state.updatedUtc).toLocaleString()}`
+                : 'Updated just now';
+
+            document.querySelectorAll('.qa-case-card').forEach((card) => {
+                const isActive = state.caseId && card.dataset.caseId === state.caseId;
+                card.classList.toggle('border-success', Boolean(isActive));
+                card.classList.toggle('shadow-lg', Boolean(isActive));
+                card.classList.toggle('qa-case-active', Boolean(isActive));
+            });
+        }
+
+        refreshQaState();
+        setInterval(refreshQaState, 800);
+    </script>
+}

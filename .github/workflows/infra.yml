@@ -1,0 +1,154 @@
+name: Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+env:
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus' }}
+  TF_RESOURCE_GROUP_NAME: ${{ vars.TF_RESOURCE_GROUP_NAME || 'lol-demo1-rg' }}
+  TF_APP_SERVICE_PLAN_NAME: ${{ vars.TF_APP_SERVICE_PLAN_NAME || 'lol-demo1-asp' }}
+  TF_WEB_APP_NAME: ${{ vars.TF_WEB_APP_NAME || 'kishoreismac-lol-demo1-webapp' }}
+  TF_LOG_ANALYTICS_WORKSPACE_NAME: ${{ vars.TF_LOG_ANALYTICS_WORKSPACE_NAME || 'lol-demo1-law' }}
+  TF_APPLICATION_INSIGHTS_NAME: ${{ vars.TF_APPLICATION_INSIGHTS_NAME || 'lol-demo1-ai' }}
+  TF_DIAGNOSTIC_SETTING_NAME: ${{ vars.TF_DIAGNOSTIC_SETTING_NAME || 'lol-demo1-webapp-diag' }}
+  TF_APP_SERVICE_SKU_NAME: ${{ vars.TF_APP_SERVICE_SKU_NAME || 'B1' }}
+  TFSTATE_RESOURCE_GROUP: ${{ vars.TFSTATE_RESOURCE_GROUP || 'lol-demo1-tfstate-rg' }}
+  TFSTATE_STORAGE_ACCOUNT: ${{ vars.TFSTATE_STORAGE_ACCOUNT || 'loldemo1tfstate' }}
+  TFSTATE_CONTAINER_NAME: ${{ vars.TFSTATE_CONTAINER_NAME || 'tfstate' }}
+  TFSTATE_KEY: ${{ vars.TFSTATE_KEY || 'lol-demo1-prod.tfstate' }}
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    outputs:
+      RESOURCE_GROUP_NAME: ${{ steps.capture_outputs.outputs.resource_group_name }}
+      WEB_APP_NAME: ${{ steps.capture_outputs.outputs.web_app_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Bootstrap remote backend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az group create \
+            --name "$TFSTATE_RESOURCE_GROUP" \
+            --location "$AZURE_LOCATION" \
+            --output none
+
+          az storage account create \
+            --name "$TFSTATE_STORAGE_ACCOUNT" \
+            --resource-group "$TFSTATE_RESOURCE_GROUP" \
+            --location "$AZURE_LOCATION" \
+            --sku Standard_LRS \
+            --kind StorageV2 \
+            --min-tls-version TLS1_2 \
+            --allow-blob-public-access false \
+            --output none
+
+          TF_STATE_ACCESS_KEY="$(az storage account keys list \
+            --resource-group "$TFSTATE_RESOURCE_GROUP" \
+            --account-name "$TFSTATE_STORAGE_ACCOUNT" \
+            --query '[0].value' \
+            --output tsv)"
+
+          if [ -z "$TF_STATE_ACCESS_KEY" ]; then
+            echo "Failed to retrieve Terraform backend storage access key."
+            exit 1
+          fi
+
+          az storage container create \
+            --name "$TFSTATE_CONTAINER_NAME" \
+            --account-name "$TFSTATE_STORAGE_ACCOUNT" \
+            --account-key "$TF_STATE_ACCESS_KEY" \
+            --fail-on-exist false \
+            --output none
+
+          echo "TF_STATE_ACCESS_KEY=$TF_STATE_ACCESS_KEY" >> "$GITHUB_ENV"
+
+      - name: Terraform init
+        working-directory: infra
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform init \
+            -input=false \
+            -backend-config="resource_group_name=$TFSTATE_RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$TFSTATE_STORAGE_ACCOUNT" \
+            -backend-config="container_name=$TFSTATE_CONTAINER_NAME" \
+            -backend-config="key=$TFSTATE_KEY" \
+            -backend-config="access_key=$TF_STATE_ACCESS_KEY"
+
+      - name: Terraform validate
+        working-directory: infra
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: infra
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform plan \
+            -input=false \
+            -out=tfplan \
+            -var="location=$AZURE_LOCATION" \
+            -var="resource_group_name=$TF_RESOURCE_GROUP_NAME" \
+            -var="app_service_plan_name=$TF_APP_SERVICE_PLAN_NAME" \
+            -var="web_app_name=$TF_WEB_APP_NAME" \
+            -var="log_analytics_workspace_name=$TF_LOG_ANALYTICS_WORKSPACE_NAME" \
+            -var="application_insights_name=$TF_APPLICATION_INSIGHTS_NAME" \
+            -var="diagnostic_setting_name=$TF_DIAGNOSTIC_SETTING_NAME" \
+            -var="app_service_sku_name=$TF_APP_SERVICE_SKU_NAME"
+
+      - name: Terraform apply
+        working-directory: infra
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Capture deployment outputs
+        id: capture_outputs
+        working-directory: infra
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RESOURCE_GROUP_NAME="$(terraform output -raw resource_group_name)"
+          WEB_APP_NAME="$(terraform output -raw web_app_name)"
+
+          if [ -z "$RESOURCE_GROUP_NAME" ] || [ -z "$WEB_APP_NAME" ]; then
+            echo "Terraform outputs are missing required values."
+            exit 1
+          fi
+
+          cat > "$GITHUB_WORKSPACE/deployment-outputs.env" <<EOF
+          RESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME
+          WEB_APP_NAME=$WEB_APP_NAME
+          EOF
+
+          echo "resource_group_name=$RESOURCE_GROUP_NAME" >> "$GITHUB_OUTPUT"
+          echo "web_app_name=$WEB_APP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload deployment outputs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-outputs
+          path: deployment-outputs.env
+          if-no-files-found: error

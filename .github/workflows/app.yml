@@ -1,0 +1,170 @@
+name: Application Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+    workflows:
+      - Infrastructure
+    types:
+      - completed
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+concurrency:
+  group: azure-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download deployment outputs artifact from triggering infrastructure run
+        if: github.event_name == 'workflow_run'
+        uses: dawidd6/action-download-artifact@v9
+        with:
+          github_token: ${{ github.token }}
+          workflow: infra.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          name: deployment-outputs
+          path: ./.deploy
+          if_no_artifact_found: fail
+
+      - name: Download latest deployment outputs artifact from main
+        if: github.event_name == 'push'
+        uses: dawidd6/action-download-artifact@v9
+        with:
+          github_token: ${{ github.token }}
+          workflow: infra.yml
+          branch: main
+          workflow_conclusion: success
+          name: deployment-outputs
+          path: ./.deploy
+          search_artifacts: true
+          if_no_artifact_found: fail
+
+      - name: Validate and load deployment outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f ./.deploy/deployment-outputs.env ]; then
+            echo "deployment-outputs.env was not found."
+            exit 1
+          fi
+
+          set -a
+          source ./.deploy/deployment-outputs.env
+          set +a
+
+          if [ -z "${RESOURCE_GROUP_NAME:-}" ]; then
+            echo "RESOURCE_GROUP_NAME is empty."
+            exit 1
+          fi
+
+          if [ -z "${WEB_APP_NAME:-}" ]; then
+            echo "WEB_APP_NAME is empty."
+            exit 1
+          fi
+
+          echo "RESOURCE_GROUP_NAME=$RESOURCE_GROUP_NAME" >> "$GITHUB_ENV"
+          echo "WEB_APP_NAME=$WEB_APP_NAME" >> "$GITHUB_ENV"
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate Azure login
+        run: az account show
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore ./LoL_Demo.sln
+
+      - name: Build
+        run: dotnet build ./LoL_Demo.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ./LoL_Demo.sln --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish ./LandOLakesDairyDemo.csproj --configuration Release --no-build --output publish
+
+      - name: Create deployment zip
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v zip >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y zip
+          fi
+
+          if [ ! -d publish ]; then
+            echo "Publish output directory does not exist."
+            exit 1
+          fi
+
+          pushd publish >/dev/null
+          zip -r ../app.zip .
+          popd >/dev/null
+
+          if [ ! -f app.zip ]; then
+            echo "app.zip was not created."
+            exit 1
+          fi
+
+      - name: Configure App Service settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          az webapp config appsettings set \
+            --resource-group "$RESOURCE_GROUP_NAME" \
+            --name "$WEB_APP_NAME" \
+            --settings WEBSITE_RUN_FROM_PACKAGE=1 SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+            --output none
+
+      - name: Deploy ZIP package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f app.zip ]; then
+            echo "app.zip is missing."
+            exit 1
+          fi
+
+          az webapp deploy \
+            --resource-group "$RESOURCE_GROUP_NAME" \
+            --name "$WEB_APP_NAME" \
+            --src-path app.zip \
+            --type zip \
+            --output none
+
+      - name: Restart app
+        run: |
+          az webapp restart \
+            --resource-group "$RESOURCE_GROUP_NAME" \
+            --name "$WEB_APP_NAME"
+
+      - name: Print deployment URLs
+        shell: bash
+        run: |
+          echo "https://${WEB_APP_NAME}.azurewebsites.net"
+          echo "https://${WEB_APP_NAME}.azurewebsites.net/swagger"

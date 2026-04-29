@@ -1,0 +1,23 @@
+@model LandOLakesDairyDemo.Models.ProductInputModel
+
+@{
+    ViewData["Title"] = "Edit Product";
+}
+
+<div class="form-card shadow-sm p-4 p-lg-5">
+    <span class="eyebrow">Admin Edit</span>
+    <h1 class="h2 mt-3 mb-2">Edit product</h1>
+    <p class="text-muted">Update the product details while keeping the catalog structure clean and demo-ready.</p>
+
+    <form asp-action="Edit" asp-route-id="@ViewBag.ProductRecordId" method="post" class="mt-4">
+        @await Html.PartialAsync("_ProductForm", Model)
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-accent">Save Changes</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

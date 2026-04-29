@@ -1,0 +1,193 @@
+:root {
+  --lol-cream: #fbf8f1;
+  --lol-butter: #f4d35e;
+  --lol-gold: #e3b343;
+  --lol-green: #3d6b4f;
+  --lol-ink: #203127;
+  --lol-muted: #68746d;
+  --lol-border: #e7e0cf;
+}
+
+html {
+  font-size: 15px;
+  position: relative;
+  min-height: 100%;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+body {
+  background: linear-gradient(180deg, #ffffff 0%, var(--lol-cream) 100%);
+  color: var(--lol-ink);
+}
+
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(61, 107, 79, 0.25);
+}
+
+.navbar {
+  backdrop-filter: blur(8px);
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--lol-butter), var(--lol-gold));
+  color: var(--lol-ink);
+  font-weight: 700;
+}
+
+.brand-title {
+  font-weight: 700;
+  color: var(--lol-ink);
+}
+
+.brand-subtitle {
+  color: var(--lol-muted);
+}
+
+.nav-link {
+  color: var(--lol-ink);
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  color: var(--lol-green);
+}
+
+.btn-accent {
+  background-color: var(--lol-green);
+  border-color: var(--lol-green);
+  color: #fff;
+}
+
+.btn-accent:hover,
+.btn-accent:focus {
+  background-color: #2f533d;
+  border-color: #2f533d;
+  color: #fff;
+}
+
+.hero-section,
+.panel-card,
+.hero-card,
+.admin-shell {
+  background-color: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--lol-border);
+  box-shadow: 0 18px 45px rgba(40, 48, 44, 0.06);
+}
+
+.eyebrow {
+  display: inline-block;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background-color: rgba(244, 211, 94, 0.28);
+  color: var(--lol-green);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hero-checklist li {
+  padding-left: 1.3rem;
+  position: relative;
+  margin-bottom: 0.8rem;
+}
+
+.hero-checklist li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--lol-green);
+}
+
+.product-card,
+.detail-card,
+.form-card,
+.table-card {
+  background: #fff;
+  border: 1px solid var(--lol-border);
+  border-radius: 1rem;
+}
+
+.product-image-placeholder,
+.product-detail-image {
+  min-height: 190px;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at top right, rgba(244, 211, 94, 0.6), transparent 32%),
+    linear-gradient(135deg, rgba(244, 211, 94, 0.16), rgba(61, 107, 79, 0.08));
+}
+
+.product-detail-image {
+  min-height: 300px;
+  border-radius: 1rem;
+}
+
+.price-pill {
+  white-space: nowrap;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background-color: var(--lol-cream);
+  color: var(--lol-green);
+  font-weight: 700;
+}
+
+.filter-bar {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--lol-border);
+  border-radius: 1rem;
+}
+
+.summary-stat {
+  background: #fff;
+  border: 1px solid var(--lol-border);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.summary-stat strong {
+  display: block;
+  font-size: 1.4rem;
+}
+
+.footer {
+  margin-top: 3rem;
+}
+
+.table > :not(caption) > * > * {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
+.badge-soft {
+  background-color: var(--lol-cream);
+  color: var(--lol-green);
+}
+
+.qa-case-active {
+  background: linear-gradient(135deg, rgba(61, 107, 79, 0.08), rgba(244, 211, 94, 0.18));
+}
+
+.empty-state {
+  border: 1px dashed var(--lol-border);
+  background: rgba(255, 255, 255, 0.75);
+}

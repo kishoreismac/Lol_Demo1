@@ -1,0 +1,72 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - LandOLakesDairyDemo</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/LandOLakesDairyDemo.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="sticky-top shadow-sm">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center gap-2" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark">LoL</span>
+                    <span>
+                        <span class="brand-title d-block">Land O Lakes Dairy Demo</span>
+                        <small class="brand-subtitle">Catalog and Admin Showcase</small>
+                    </span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse justify-content-between">
+                    <ul class="navbar-nav gap-lg-2">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Products" asp-action="Index">Products</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="AdminProducts" asp-action="Index">Admin</a>
+                        </li>
+                    </ul>
+                    <div class="d-flex gap-2 mt-3 mt-lg-0">
+                        <a class="btn btn-outline-secondary btn-sm" href="/swagger" target="_blank" rel="noreferrer">Swagger</a>
+                        <a class="btn btn-accent btn-sm" asp-area="" asp-controller="Products" asp-action="Index">Browse Catalog</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container py-4 py-lg-5">
+        @if (TempData["StatusMessage"] is string statusMessage)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @statusMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted bg-white">
+        <div class="container">
+            <div class="d-flex flex-column flex-md-row justify-content-between gap-2 py-3">
+                <span>&copy; 2026 Land O Lakes Dairy Demo</span>
+                <span>ASP.NET Core MVC .NET 8, SQLite, Bootstrap 5, Swagger</span>
+            </div>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
