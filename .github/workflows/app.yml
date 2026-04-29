@@ -91,10 +91,10 @@ jobs:
         run: dotnet build LoL_Demo.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test LandOLakesDairyDemo.Tests/LandOLakesDairyDemo.Tests.csproj --configuration Release 
+        run: dotnet test LandOLakesDairyDemo.Tests.csproj --configuration Release 
 
       - name: Publish
-        run: dotnet publish LandOLakesDairyDemo/LandOLakesDairyDemo.csproj --configuration Release --no-build --output "$PUBLISH_DIR"
+        run: dotnet publish LandOLakesDairyDemo.csproj --configuration Release --no-build --output "$PUBLISH_DIR"
 
       - name: Zip Publish Output
         run: |
